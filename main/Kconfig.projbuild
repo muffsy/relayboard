@@ -1,0 +1,17 @@
+menu "Wireless configuration"
+
+config WIFI_SSID
+    string "WiFi SSID"
+    default "ssid"
+    help
+        SSID (network name) for the device to connect to.
+
+config WIFI_PASS
+    string "WiFi password"
+    default "password"
+    help
+        WiFi password (WPA or WPA2) to use when connecting.
+
+        Can be left blank if for open networks.
+
+endmenu
