@@ -18,6 +18,7 @@
 #include "esp_event_loop.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "nvs.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -135,6 +136,40 @@ static void init_wifi(void)
     ESP_ERROR_CHECK( esp_wifi_start() );
 }
 
+int8_t nvs_read()
+{
+    uint8_t value = 0;
+    nvs_handle nvs;
+    if (nvs_open("storage", NVS_READWRITE, &nvs) == ESP_OK) {
+        switch (nvs_get_u8(nvs, "value", &value)) {
+            case ESP_OK:
+            case ESP_ERR_NVS_NOT_FOUND:
+                break;
+            default:
+                LOGE("nvs_get() failed");
+                break;
+        }
+    } else {
+        LOGE("nvs_open() failed");
+    }
+    nvs_close(nvs);
+    return value;
+}
+
+void nvs_write(uint8_t value)
+{
+    nvs_handle nvs;
+
+    if (nvs_open("storage", NVS_READWRITE, &nvs) == ESP_OK) {
+        if (nvs_set_u8(nvs, "value", value) != ESP_OK) {
+            LOGE("nvs_set() failed");
+        }
+    } else {
+        LOGE("nvs_open() failed");
+    }
+    nvs_close(nvs);
+}
+
 void app_main()
 {
     LOGI("Muffsy Relay Input Selector");
@@ -145,12 +180,22 @@ void app_main()
     /* Configure GPIO pins */
     gpio_init();
 
+    /* Init flash */
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
     /* Default to all off */
-    // TODO: Restore last state from flash
     relays_clear();
 
-    /* Init flash */
-    ESP_ERROR_CHECK(nvs_flash_init());
+    /* Restore last state from flash */
+    int8_t value = nvs_read();
+    if (value) {
+        relay_on(value - 1);
+    }
 
     /* Init WiFi and wait for network connection */
     init_wifi();
@@ -199,12 +244,12 @@ void app_main()
                     // TODO: Return current status
                     write(client_socket, "?", 1);
                 } else if (buffer[5] >= '0' && buffer[5] <= '5') {
-                    // TODO: Save state to nvs
                     relays_clear();
                     int relay = buffer[5] - '0';
                     if (relay) {
                         relay_on(relay - 1);
                     }
+                    nvs_write(relay);
                 }
                 write(client_socket, "\0", 1);
             }
