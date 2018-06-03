@@ -1,3 +1,3 @@
-# Muffsy Input Select
+# Muffsy Relay Input Selector
 
-Starts a FreeRTOS task to print "Muffsy Input Select"
+Starts a FreeRTOS task that enables five relays one by one in a loop.
