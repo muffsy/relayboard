@@ -42,6 +42,12 @@ unsigned int GPIO_PIN_RELAY[] = {23, 22, 21, 19, 18};
 
 #define GPIO_OUTPUT_PIN_MASK ((1ULL<<GPIO_PIN_RELAY[0]) | (1ULL<<GPIO_PIN_RELAY[1]) | (1ULL<<GPIO_PIN_RELAY[2]) | (1ULL<<GPIO_PIN_RELAY[3]) | (1ULL<<GPIO_PIN_RELAY[4]))
 
+/* Web server content */
+static const char *http_200_ok_html = "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n";
+extern const uint8_t index_html_start[] asm("_binary_index_html_start");
+extern const uint8_t index_html_end[]   asm("_binary_index_html_end");
+size_t  index_html_len;
+
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 static EventGroupHandle_t wifi_event_group;
 
@@ -52,10 +58,15 @@ const int CONNECTED_BIT = BIT0;
 
 void relays_clear()
 {
-    printf("Muffsy Input Select\n");
+    LOGI("All relays off");
+    for (unsigned int i = 0; i < 5; i++) {
+        gpio_set_level(GPIO_PIN_RELAY[i], 0);
+    }
+}
 
 void relay_on(unsigned int relay)
 {
+    LOGI("Relay %d on", relay);
     gpio_set_level(GPIO_PIN_RELAY[relay], 1);
 }
 
@@ -135,6 +146,7 @@ void app_main()
     gpio_init();
 
     /* Default to all off */
+    // TODO: Restore last state from flash
     relays_clear();
 
     /* Init flash */
@@ -145,14 +157,59 @@ void app_main()
     xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
     LOGI("Connected!");
 
-    unsigned int counter = 0;
+    /* Setup server */
+    struct sockaddr_in server_addr;
+    struct sockaddr_in client_addr;
+
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket < 0) {
+        LOGE("socket() failed");
+        esp_restart();
+    }
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port = htons(80);
+
+    if (bind(server_socket, (struct sockaddr*)(&server_addr), sizeof(struct sockaddr)) < 0) {
+        LOGE("bind() failed");
+        esp_restart();
+    }
+
+    if (listen(server_socket, 8) < 0) {
+        LOGE("listen() failed");
+        esp_restart();
+    }
+
+    index_html_len = index_html_end - index_html_start;
+
+    /* Run server and relay logic */
     for (;;) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        LOGI("Relay %d", counter % 5);
-        relays_clear();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-        relay_on(counter % 5);
-        counter++;
+        socklen_t length = sizeof(client_addr);
+        int client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &length);
+
+        static char buffer[1024] = {0};
+        if (read(client_socket, buffer, 1024)) {
+            write(client_socket, http_200_ok_html, strlen(http_200_ok_html));
+
+            if (!strncmp(buffer, "GET", 3)) {
+                if (buffer[5] == ' ') {
+                    write(client_socket, index_html_start, index_html_len);
+                } else if (buffer[5] == '?') {
+                    // TODO: Return current status
+                    write(client_socket, "?", 1);
+                } else if (buffer[5] >= '0' && buffer[5] <= '5') {
+                    // TODO: Save state to nvs
+                    relays_clear();
+                    int relay = buffer[5] - '0';
+                    if (relay) {
+                        relay_on(relay - 1);
+                    }
+                }
+                write(client_socket, "\0", 1);
+            }
+        }
+        close(client_socket);
     }
 
     fflush(stdout);

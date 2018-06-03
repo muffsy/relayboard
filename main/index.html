@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <meta name="mobile-web-app-capable" content="yes">
+        <title>Muffsy Relay Input Selector</title>
+        <style>
+<!--
+* {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    cursor: default;
+    background: #333333;
+    font-family: sans-serif;
+    height: 100%;
+    color: #ffffff;
+}
+
+ul li {
+    display: block;
+    padding: 2em;
+    margin: 1em;
+    border-style: solid;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #ffffff;
+}
+-->
+        </style>
+        <script>
+<!--
+function send(cmd)
+{
+    var xhr = new XMLHttpRequest();
+    xhr.onload = function() {
+
+    };
+    xhr.open("get", cmd, true);
+    xhr.send();
+}
+-->
+        </script>
+    </head>
+    <body>
+        <ul>
+            <li onClick="send(1);">First input</li>
+            <li onClick="send(2);">Second input</li>
+            <li onClick="send(3);">Third input</li>
+            <li onClick="send(4);">Fourth input</li>
+            <li onClick="send(5);">Fifth input</li>
+            <li onClick="send(0);">All off</li>
+        </ul>
+    </body>
+</html>
