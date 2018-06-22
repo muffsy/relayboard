@@ -241,8 +241,9 @@ void app_main()
                 if (buffer[5] == ' ') {
                     write(client_socket, index_html_start, index_html_len);
                 } else if (buffer[5] == '?') {
-                    // TODO: Return current status
-                    write(client_socket, "?", 1);
+                    LOGI("Query status: %d", nvs_read());
+                    char current = nvs_read() + '0';
+                    write(client_socket, &current, 1);
                 } else if (buffer[5] >= '0' && buffer[5] <= '5') {
                     relays_clear();
                     int relay = buffer[5] - '0';
@@ -251,7 +252,6 @@ void app_main()
                     }
                     nvs_write(relay);
                 }
-                write(client_socket, "\0", 1);
             }
         }
         close(client_socket);
